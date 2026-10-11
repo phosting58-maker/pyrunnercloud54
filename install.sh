@@ -43,7 +43,7 @@ systemctl status cloud54 --no-pager || true
 IP=$(curl -s4 ifconfig.me || hostname -I | awk '{print $1}')
 echo ""
 echo "=========================================="
-echo " PANEL CLOUDPUSAT54! ✅"
+echo " PANEL JADI ANEG! ✅"
 echo " URL: http://$IP"
 echo " Login: admin / cloud54"
 echo " Port: 80 (Anti tabrakan bot)"
