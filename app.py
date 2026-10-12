@@ -18,7 +18,9 @@ def is_run(bp,bn):
    if bp in c and 'python' in c:return True,pr.info['pid']
   except:continue
  return False,0
+
 LOGIN='<html><head><meta name=viewport content="width=device-width,initial-scale=1"><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#08070e;color:#fff;font-family:system-ui}.bx{width:92%;max-width:360px;background:rgba(15,15,25,.9);border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:28px;text-align:center}.lg{font-weight:900;font-size:26px}.lg span{color:#a78bfa}input{width:100%;margin-top:12px;padding:13px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.3);color:#fff}button{width:100%;margin-top:16px;padding:13px;border-radius:14px;border:0;background:#fff;color:#000;font-weight:800}</style></head><body><div class=bx><div class=lg>Cloud<span>Pusat54</span></div><form method=post action=/login><input name=user placeholder=admin><input name=pass type=password placeholder=cloud54><button>LOGIN</button></form></div></body></html>'
+
 MAIN='''<html><head><meta name=viewport content="width=device-width,initial-scale=1"><style>
 *{box-sizing:border-box;font-family:Inter,system-ui}body{margin:0;background:#08070e;color:#cbd5e1;padding-bottom:110px}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(900px at 50% 0%,rgba(120,60,255,.25),transparent 70%),radial-gradient(700px at 0% 100%,rgba(80,30,180,.4),transparent 60%);pointer-events:none}
@@ -47,9 +49,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(900px 
 .bottom div.on{background:rgba(255,255,255,.1);color:#5eead4}
 </style></head><body>
 <div class=wrap>
-<div class=h><div class=logo>Cloud<span>Pusat54</span> <span style="font-size:10px;background:rgba(167,139,250,.2);color:#a78bfa;padding:3px 8px;border-radius:20px">NEBULA</span></div><div style="display:flex;gap:10px;align-items:center"><span style="font-size:11px;color:#4b5563" id="clk"></span><a href="/logout" style="color:#64748b;text-decoration:none;font-size:12px">Logout</a></div></div>
+<div class=h><div class=logo>Cloud<span>Pusat54</span> <span style="font-size:10px;background:rgba(167,139,250,.2);color:#a78bfa;padding:3px 8px;border-radius:20px">V10</span></div><div style="display:flex;gap:10px;align-items:center"><span style="font-size:11px;color:#4b5563" id="clk"></span><a href="/logout" style="color:#94a3b8;text-decoration:none;font-size:12px;border:1px solid rgba(255,255,255,.1);padding:5px 10px;border-radius:20px">Logout</a></div></div>
 <div class=grid><div class="stat cpu"><label>CPU</label><b id="cpu">-</b><div class=bar><i id="cb" style="width:10%;background:linear-gradient(90deg,#10b981,#6ee7b7)"></i></div></div><div class="stat ram"><label>RAM</label><b id="ram">-</b><div class=bar><i id="rb" style="width:30%;background:linear-gradient(90deg,#8b5cf6,#a78bfa)"></i></div></div><div class="stat disk"><label>DISK</label><b id="disk">-</b><div class=bar><i id="db" style="width:50%;background:linear-gradient(90deg,#06b6d4,#67e8f9)"></i></div></div></div>
-<div id="p1"><div class=sec><div style="display:flex;justify-content:space-between;margin-bottom:12px"><b style="color:#fff;font-size:13px">MY BOTS</b><span id="cnt" style="font-size:11px;color:#475569"></span></div><div id="bots">Loading...</div><div id="rlog" class=logbox style="display:none"></div></div></div>
+<div id="p1"><div class=sec><div style="display:flex;justify-content:space-between;margin-bottom:12px"><b style="color:#fff;font-size:13px">MY BOTS</b><span id="cnt" style="font-size:11px;color:#475569"></span></div><div id="bots">Loading bots...</div><div id="rlog" class=logbox style="display:none"></div></div></div>
 <div id="p2" style="display:none"><div class=sec><div style="display:flex;justify-content:space-between"><span id="cur" style="color:#5eead4;font-family:monospace;font-size:11px">/root/apps</span><button class=btn onclick="lf('/root/apps')">Root</button></div><div id="fl" style="margin-top:10px"></div></div><div class=sec style="margin-top:12px"><div style="display:flex;gap:6px;flex-wrap:wrap"><button class=btn onclick="nf()">+ File</button><button class=btn onclick="ed()">Edit</button><button class=btn onclick="sv()">Save</button><button class=btn onclick="xf()">Extract</button><button class="btn btn-stop" onclick="df()">Delete</button></div><div id="si" style="font-size:10px;color:#475569;margin-top:8px">No file selected</div></div><div class=sec id="ec" style="display:none;margin-top:12px"><div style="display:flex;justify-content:space-between"><small id="en" style="color:#5eead4;font-family:monospace"></small><button class=btn onclick="document.getElementById('ec').style.display='none'">Close</button></div><textarea id="t" class=ta></textarea></div></div>
 <div id="p3" style="display:none"><div class=sec><b style="color:#fff">Deploy New Bot</b><p style="color:#64748b;font-size:12px;margin:6px 0 14px">Upload ZIP bot kamu</p><input id="n" class=inp placeholder="Nama bot"><input id="cmd" class=inp value="python3 main.py"><input type="file" id="z" style="margin:8px 0;color:#64748b"><button class="btn btn-run" style="width:100%;padding:13px;font-size:13px" onclick="dp()">Deploy Now</button><div id="dl" class=logbox style="display:none"></div></div></div>
 </div>
@@ -98,6 +100,7 @@ setInterval(function(){document.getElementById('clk').innerText=new Date().toLoc
 lm();
 setInterval(lm,3000);
 </script></body></html>'''
+
 @app.get('/login',response_class=HTMLResponse)
 async def a():return HTMLResponse(LOGIN)
 @app.post('/login')
