@@ -15,6 +15,7 @@ def init_db():
     conn.execute("""CREATE TABLE IF NOT EXISTS bots (name TEXT PRIMARY KEY, auto_start INTEGER DEFAULT 1, created_at TEXT, last_pid INTEGER DEFAULT 0, status TEXT DEFAULT 'stopped')""")
     conn.commit(); conn.close()
 init_db()
+
 def db_q(q, args=(), fetch=False):
     conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
     cur = conn.cursor(); cur.execute(q, args)
@@ -25,14 +26,41 @@ def db_q(q, args=(), fetch=False):
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+def get_systemd_pid(name):
+    try:
+        out = subprocess.check_output(["systemctl", "show", f"bot-{name}.scope", "-p", "MainPID", "--value"], text=True, timeout=1).strip()
+        if out.isdigit() and int(out)!=0: return int(out)
+    except: pass
+    return 0
+
 def is_running(name):
+    # 1. Cek systemd scope aktif = LIVE
+    try:
+        r = subprocess.run(["systemctl", "is-active", f"bot-{name}.scope"], capture_output=True, text=True, timeout=1)
+        if r.stdout.strip()=="active": return True
+    except: pass
+    # 2. Cek pid file
     pidf = APPS_DIR / name / "bot.pid"
-    if not pidf.exists(): return False
-    try: return psutil.pid_exists(int(pidf.read_text().strip()))
-    except: return False
+    if pidf.exists():
+        try:
+            if psutil.pid_exists(int(pidf.read_text().strip())): return True
+        except: pass
+    # 3. Cek proses python yang jalan di folder itu
+    try:
+        for proc in psutil.process_iter(['cmdline']):
+            try:
+                cmd = " ".join(proc.info['cmdline'] or [])
+                if f"/root/apps/{name}" in cmd and "python" in cmd: return True
+            except: continue
+    except: pass
+    return False
+
 def get_pid(name):
+    pid = get_systemd_pid(name)
+    if pid: return pid
     try: return int((APPS_DIR / name / "bot.pid").read_text())
     except: return 0
+
 def safe_read(p: Path):
     try:
         if not p.exists(): return "no logs"
@@ -59,8 +87,10 @@ async def list_apps():
         if d.name in IGNORE or d.name.startswith(".") or d.name.startswith("__") or d.name.startswith("FILE_"): continue
         has_py = (d / "main.py").exists() or any(f.suffix==".py" for f in d.iterdir() if f.is_file())
         if not has_py: continue
+        running = is_running(d.name)
+        pid = get_pid(d.name)
         db_info = db_rows.get(d.name, {})
-        out.append({"name": d.name, "running": is_running(d.name), "pid": get_pid(d.name), "auto_start": db_info.get('auto_start',1)})
+        out.append({"name": d.name, "running": running, "pid": pid, "auto_start": db_info.get('auto_start',1)})
     return out
 
 @app.post("/api/apps/{name}/start")
@@ -72,18 +102,27 @@ async def start_app(name: str):
         if not pys: raise HTTPException(400, "main.py not found")
         main = pys[0]
     log = LOGS_DIR / f"{name}.log"
-    if is_running(name):
-        try: os.kill(get_pid(name), 9)
-        except: pass
     try: subprocess.run(["systemctl", "stop", f"bot-{name}.scope"], timeout=2)
     except: pass
-    try:
-        subprocess.Popen(["systemd-run", f"--unit=bot-{name}", "--scope", "--quiet", "/root/panel/panel-venv/bin/python", str(main)], cwd=str(app_path), stdout=open(log, "a"), stderr=subprocess.STDOUT, start_new_session=True)
-    except:
-        subprocess.Popen(["nohup", "/root/panel/panel-venv/bin/python", str(main)], cwd=str(app_path), stdout=open(log, "a"), stderr=subprocess.STDOUT, start_new_session=True, preexec_fn=os.setpgrp)
-    time.sleep(1)
-    db_q("UPDATE bots SET status='running' WHERE name=?", (name,))
-    return {"ok": True}
+    pidf = app_path / "bot.pid"
+    if pidf.exists():
+        try: os.kill(int(pidf.read_text()), 9)
+        except: pass
+
+    subprocess.Popen(["systemd-run", f"--unit=bot-{name}", "--scope", "--quiet", "/root/panel/panel-venv/bin/python", str(main)], cwd=str(app_path), stdout=open(log, "a"), stderr=subprocess.STDOUT, start_new_session=True)
+    time.sleep(1.5)
+    pid = get_systemd_pid(name)
+    if pid==0:
+        try:
+            for proc in psutil.process_iter(['pid','cmdline']):
+                try:
+                    if f"/root/apps/{name}" in " ".join(proc.info['cmdline'] or []):
+                        pid = proc.info['pid']; break
+                except: continue
+        except: pass
+    if pid!=0: pidf.write_text(str(pid))
+    db_q("UPDATE bots SET status='running', last_pid=? WHERE name=?", (pid, name))
+    return {"ok": True, "pid": pid, "running": is_running(name)}
 
 @app.post("/api/apps/{name}/stop")
 async def stop_app(name: str):
@@ -91,9 +130,19 @@ async def stop_app(name: str):
     except: pass
     f = APPS_DIR / name / "bot.pid"
     if f.exists():
-        try: os.kill(int(f.read_text()), 9)
+        try:
+            p = int(f.read_text())
+            if psutil.pid_exists(p): os.kill(p, 9)
         except: pass
         f.unlink(missing_ok=True)
+    # kill sisa proses manual
+    try:
+        for proc in psutil.process_iter(['pid','cmdline']):
+            try:
+                if f"/root/apps/{name}" in " ".join(proc.info['cmdline'] or []):
+                    os.kill(proc.info['pid'], 9)
+            except: continue
+    except: pass
     db_q("UPDATE bots SET status='stopped' WHERE name=?", (name,))
     return {"ok": True}
 
@@ -145,7 +194,6 @@ async def extract(req: Request):
     if p.suffix!= ".zip": raise HTTPException(400, "bukan zip")
     with zipfile.ZipFile(p) as z: z.extractall(p.parent)
     return {"ok": True}
-
 @app.post("/api/deploy")
 async def deploy(req: Request):
     d = await req.json(); name = d.get("name","pusat").replace(" ","_").strip()
@@ -153,7 +201,6 @@ async def deploy(req: Request):
     (p / "main.py").write_text(d.get("code",""), encoding="utf-8")
     db_q("INSERT OR REPLACE INTO bots (name, auto_start, created_at, status) VALUES (?,?,?,?)", (name, 1, datetime.now().isoformat(), "stopped"))
     return {"ok": True}
-
 @app.post("/api/deploy/upload")
 async def deploy_upload(name: str = Form(...), file: UploadFile = File(...)):
     name = name.replace(" ","_").strip() or "pusat"
@@ -169,7 +216,6 @@ async def deploy_upload(name: str = Form(...), file: UploadFile = File(...)):
                 z.extractall(bot_dir)
                 count = len(z.namelist())
             dest.unlink()
-            # kalau zip isinya folder tunggal, pindahin isinya ke atas
             subdirs = [d for d in bot_dir.iterdir() if d.is_dir()]
             if len(subdirs)==1 and not (bot_dir / "main.py").exists():
                 inner = subdirs[0]
@@ -180,8 +226,7 @@ async def deploy_upload(name: str = Form(...), file: UploadFile = File(...)):
             raise HTTPException(500, f"extract gagal: {e}")
     elif dest.suffix == ".py":
         if dest.name!= "main.py":
-            if (bot_dir / "main.py").exists():
-                (bot_dir / "main.py").unlink()
+            if (bot_dir / "main.py").exists(): (bot_dir / "main.py").unlink()
             dest.rename(bot_dir / "main.py")
     db_q("INSERT OR REPLACE INTO bots (name, auto_start, created_at, status) VALUES (?,?,?,?)", (name, 1, datetime.now().isoformat(), "stopped"))
     return {"ok": True, "name": name, "files": count}
