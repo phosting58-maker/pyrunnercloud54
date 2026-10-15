@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+psutil
+python-multipart
+httpx
+telethon
+requests
+aiohttp
+pyrogram
+tgcrypto
