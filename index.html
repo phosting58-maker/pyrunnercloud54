@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CloudPusat54 Panel</title>
+<style>
+*{box-sizing:border-box}body{background:#0f1115;color:#fff;font-family:sans-serif;margin:0;padding:20px}
+.card{background:#1a1d24;padding:20px;border-radius:12px;margin-bottom:15px;border:1px solid #2a2e39}
+input{width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#111;color:#fff;margin:8px 0}
+button{width:100%;padding:12px;border-radius:8px;border:0;background:#6c5ce7;color:#fff;font-weight:bold}
+.small{color:#888;font-size:13px}
+</style>
+</head>
+<body>
+<div class="card">
+<h2>CloudPusat54 Panel</h2>
+<div class="small">VPS: <span id="ip"></span> | Login: admin / cloud54</div>
+</div>
+<div class="card" id="loginBox">
+<h3>Login</h3>
+<input id="u" placeholder="Username" value="admin">
+<input id="p" type="password" placeholder="Password" value="cloud54">
+<button onclick="login()">LOGIN</button>
+</div>
+<div class="card" id="panelBox" style="display:none">
+<h3>Status: <span id="stat">loading...</span></h3>
+<div id="apps"></div>
+<button onclick="location.reload()">Refresh</button>
+</div>
+<script>
+fetch('/api/status').then(r=>r.json()).then(d=>{
+ document.getElementById('stat').innerText = `CPU ${d.cpu}% | RAM ${d.ram}% | Apps ${d.apps}`;
+ document.getElementById('ip').innerText = location.host;
+});
+function login(){
+ fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u.value,password:p.value})})
+.then(r=>{if(!r.ok)throw 'salah'; return r.json()}).then(()=>{
+   loginBox.style.display='none'; panelBox.style.display='block';
+   fetch('/api/apps').then(r=>r.json()).then(apps=>{
+     document.getElementById('apps').innerHTML = apps.map(a=>`<div class='card'>${a.name}</div>`).join('') || 'Belum ada app di /root/apps';
+   });
+ }).catch(()=>alert('Login gagal'));
+}
+</script>
+</body>
+</html>
