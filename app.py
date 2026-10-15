@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException, UploadFile, File
+from fastapi import FastAPI, Request, HTTPException, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
@@ -15,7 +15,6 @@ def init_db():
     conn.execute("""CREATE TABLE IF NOT EXISTS bots (name TEXT PRIMARY KEY, auto_start INTEGER DEFAULT 1, created_at TEXT, last_pid INTEGER DEFAULT 0, status TEXT DEFAULT 'stopped')""")
     conn.commit(); conn.close()
 init_db()
-
 def db_q(q, args=(), fetch=False):
     conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
     cur = conn.cursor(); cur.execute(q, args)
@@ -31,11 +30,9 @@ def is_running(name):
     if not pidf.exists(): return False
     try: return psutil.pid_exists(int(pidf.read_text().strip()))
     except: return False
-
 def get_pid(name):
     try: return int((APPS_DIR / name / "bot.pid").read_text())
     except: return 0
-
 def safe_read(p: Path):
     try:
         if not p.exists(): return "no logs"
@@ -45,10 +42,8 @@ def safe_read(p: Path):
 
 @app.get("/", response_class=HTMLResponse)
 async def root(): return HTMLResponse((BASE_DIR / "index.html").read_text(encoding="utf-8", errors="ignore"))
-
 @app.get("/api/status")
 async def status(): return {"cpu": psutil.cpu_percent(), "ram": psutil.virtual_memory().percent, "disk": psutil.disk_usage("/").percent}
-
 @app.post("/api/login")
 async def login(req: Request):
     d = await req.json()
@@ -58,14 +53,10 @@ async def login(req: Request):
 @app.get("/api/apps")
 async def list_apps():
     db_rows = {r['name']: dict(r) for r in db_q("SELECT * FROM bots", fetch=True)}
-    out=[]
-    IGNORE = {"__pycache__", "FILE_PO", "FILE_PO_", "FILE", ".git", "venv", "panel-venv", "logs", "LOGS"}
+    out=[]; IGNORE = {"__pycache__", "FILE_PO", ".git", "venv", "panel-venv", "logs"}
     for d in APPS_DIR.iterdir():
         if not d.is_dir(): continue
-        if d.name in IGNORE: continue
-        if d.name.startswith("."): continue
-        if d.name.startswith("__"): continue
-        if d.name.startswith("FILE_"): continue
+        if d.name in IGNORE or d.name.startswith(".") or d.name.startswith("__") or d.name.startswith("FILE_"): continue
         has_py = (d / "main.py").exists() or any(f.suffix==".py" for f in d.iterdir() if f.is_file())
         if not has_py: continue
         db_info = db_rows.get(d.name, {})
@@ -75,7 +66,6 @@ async def list_apps():
 @app.post("/api/apps/{name}/start")
 async def start_app(name: str):
     app_path = APPS_DIR / name
-    if not app_path.exists(): raise HTTPException(404)
     main = app_path / "main.py"
     if not main.exists():
         pys = list(app_path.glob("*.py"))
@@ -92,9 +82,8 @@ async def start_app(name: str):
     except:
         subprocess.Popen(["nohup", "/root/panel/panel-venv/bin/python", str(main)], cwd=str(app_path), stdout=open(log, "a"), stderr=subprocess.STDOUT, start_new_session=True, preexec_fn=os.setpgrp)
     time.sleep(1)
-    pid = get_pid(name)
     db_q("UPDATE bots SET status='running' WHERE name=?", (name,))
-    return {"ok": True, "pid": pid}
+    return {"ok": True}
 
 @app.post("/api/apps/{name}/stop")
 async def stop_app(name: str):
@@ -118,7 +107,6 @@ async def del_app(name: str):
 
 @app.get("/api/apps/{name}/logs")
 async def logs(name: str): return {"logs": safe_read(LOGS_DIR / f"{name}.log")}
-
 @app.get("/api/files")
 async def files(path: str = "/root/apps"):
     p = Path(path)
@@ -130,18 +118,15 @@ async def files(path: str = "/root/apps"):
         except: sz=0
         items.append({"name": child.name, "path": str(child), "is_dir": child.is_dir(), "size": sz})
     return {"type": "dir", "path": str(p), "items": items}
-
 @app.post("/api/files/write")
 async def write(req: Request):
     d = await req.json(); p = Path(d["path"]); p.parent.mkdir(parents=True, exist_ok=True); p.write_text(d["content"], encoding="utf-8"); return {"ok": True}
-
 @app.post("/api/files/delete")
 async def deletef(req: Request):
     d = await req.json(); p = Path(d["path"])
     if p.is_dir(): shutil.rmtree(p, ignore_errors=True)
     else: p.unlink(missing_ok=True)
     return {"ok": True}
-
 @app.post("/api/files/upload")
 async def upload(path: str = "/root/apps", file: UploadFile = File(...)):
     dest_dir = Path(path)
@@ -153,7 +138,6 @@ async def upload(path: str = "/root/apps", file: UploadFile = File(...)):
             with zipfile.ZipFile(dest) as z: z.extractall(dest_dir); dest.unlink()
         except: pass
     return {"ok": True}
-
 @app.post("/api/files/extract")
 async def extract(req: Request):
     d = await req.json(); p = Path(d["path"])
@@ -169,3 +153,35 @@ async def deploy(req: Request):
     (p / "main.py").write_text(d.get("code",""), encoding="utf-8")
     db_q("INSERT OR REPLACE INTO bots (name, auto_start, created_at, status) VALUES (?,?,?,?)", (name, 1, datetime.now().isoformat(), "stopped"))
     return {"ok": True}
+
+@app.post("/api/deploy/upload")
+async def deploy_upload(name: str = Form(...), file: UploadFile = File(...)):
+    name = name.replace(" ","_").strip() or "pusat"
+    bot_dir = APPS_DIR / name
+    bot_dir.mkdir(parents=True, exist_ok=True)
+    content = await file.read()
+    dest = bot_dir / file.filename
+    dest.write_bytes(content)
+    count = 1
+    if dest.suffix == ".zip":
+        try:
+            with zipfile.ZipFile(dest) as z:
+                z.extractall(bot_dir)
+                count = len(z.namelist())
+            dest.unlink()
+            # kalau zip isinya folder tunggal, pindahin isinya ke atas
+            subdirs = [d for d in bot_dir.iterdir() if d.is_dir()]
+            if len(subdirs)==1 and not (bot_dir / "main.py").exists():
+                inner = subdirs[0]
+                for item in inner.iterdir():
+                    shutil.move(str(item), str(bot_dir / item.name))
+                shutil.rmtree(inner, ignore_errors=True)
+        except Exception as e:
+            raise HTTPException(500, f"extract gagal: {e}")
+    elif dest.suffix == ".py":
+        if dest.name!= "main.py":
+            if (bot_dir / "main.py").exists():
+                (bot_dir / "main.py").unlink()
+            dest.rename(bot_dir / "main.py")
+    db_q("INSERT OR REPLACE INTO bots (name, auto_start, created_at, status) VALUES (?,?,?,?)", (name, 1, datetime.now().isoformat(), "stopped"))
+    return {"ok": True, "name": name, "files": count}
