@@ -12,13 +12,7 @@ DB_PATH = BASE_DIR / "bots.db"
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("""CREATE TABLE IF NOT EXISTS bots (
-        name TEXT PRIMARY KEY,
-        auto_start INTEGER DEFAULT 1,
-        created_at TEXT,
-        last_pid INTEGER DEFAULT 0,
-        status TEXT DEFAULT 'stopped'
-    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS bots (name TEXT PRIMARY KEY, auto_start INTEGER DEFAULT 1, created_at TEXT, last_pid INTEGER DEFAULT 0, status TEXT DEFAULT 'stopped')""")
     conn.commit(); conn.close()
 init_db()
 
@@ -37,28 +31,45 @@ def is_running(name):
     if not pidf.exists(): return False
     try: return psutil.pid_exists(int(pidf.read_text().strip()))
     except: return False
+
 def get_pid(name):
     try: return int((APPS_DIR / name / "bot.pid").read_text())
     except: return 0
+
 def safe_read(p: Path):
     try:
         if not p.exists(): return "no logs"
-        if p.stat().st_size > 500000: return f"[file kegedean {p.stat().st_size} bytes]"
+        if p.stat().st_size > 500000: return f"[kegedean {p.stat().st_size}b]"
         return p.read_text(encoding="utf-8", errors="ignore")[-15000:]
     except Exception as e: return f"[error: {e}]"
 
 @app.get("/", response_class=HTMLResponse)
 async def root(): return HTMLResponse((BASE_DIR / "index.html").read_text(encoding="utf-8", errors="ignore"))
+
 @app.get("/api/status")
 async def status(): return {"cpu": psutil.cpu_percent(), "ram": psutil.virtual_memory().percent, "disk": psutil.disk_usage("/").percent}
+
+@app.post("/api/login")
+async def login(req: Request):
+    d = await req.json()
+    if d.get("username")=="admin" and d.get("password")=="cloud54": return {"ok": True}
+    raise HTTPException(status_code=401, detail="salah")
+
 @app.get("/api/apps")
 async def list_apps():
     db_rows = {r['name']: dict(r) for r in db_q("SELECT * FROM bots", fetch=True)}
     out=[]
+    IGNORE = {"__pycache__", "FILE_PO", "FILE_PO_", "FILE", ".git", "venv", "panel-venv", "logs", "LOGS"}
     for d in APPS_DIR.iterdir():
-        if d.is_dir():
-            db_info = db_rows.get(d.name, {})
-            out.append({"name": d.name, "running": is_running(d.name), "pid": get_pid(d.name), "auto_start": db_info.get('auto_start',1)})
+        if not d.is_dir(): continue
+        if d.name in IGNORE: continue
+        if d.name.startswith("."): continue
+        if d.name.startswith("__"): continue
+        if d.name.startswith("FILE_"): continue
+        has_py = (d / "main.py").exists() or any(f.suffix==".py" for f in d.iterdir() if f.is_file())
+        if not has_py: continue
+        db_info = db_rows.get(d.name, {})
+        out.append({"name": d.name, "running": is_running(d.name), "pid": get_pid(d.name), "auto_start": db_info.get('auto_start',1)})
     return out
 
 @app.post("/api/apps/{name}/start")
@@ -78,18 +89,11 @@ async def start_app(name: str):
     except: pass
     try:
         subprocess.Popen(["systemd-run", f"--unit=bot-{name}", "--scope", "--quiet", "/root/panel/panel-venv/bin/python", str(main)], cwd=str(app_path), stdout=open(log, "a"), stderr=subprocess.STDOUT, start_new_session=True)
-        time.sleep(1)
-        pid = get_pid(name) or 0
-        if pid==0:
-            try:
-                out = subprocess.check_output(["systemctl", "show", f"bot-{name}.scope", "-p", "MainPID", "--value"], text=True).strip()
-                pid = int(out) if out.isdigit() else 0
-            except: pid = 0
     except:
-        proc = subprocess.Popen(["nohup", "/root/panel/panel-venv/bin/python", str(main)], cwd=str(app_path), stdout=open(log, "a"), stderr=subprocess.STDOUT, start_new_session=True, preexec_fn=os.setpgrp)
-        pid = proc.pid
-    (app_path / "bot.pid").write_text(str(pid))
-    db_q("UPDATE bots SET last_pid=?, status='running' WHERE name=?", (pid, name))
+        subprocess.Popen(["nohup", "/root/panel/panel-venv/bin/python", str(main)], cwd=str(app_path), stdout=open(log, "a"), stderr=subprocess.STDOUT, start_new_session=True, preexec_fn=os.setpgrp)
+    time.sleep(1)
+    pid = get_pid(name)
+    db_q("UPDATE bots SET status='running' WHERE name=?", (name,))
     return {"ok": True, "pid": pid}
 
 @app.post("/api/apps/{name}/stop")
@@ -154,11 +158,9 @@ async def upload(path: str = "/root/apps", file: UploadFile = File(...)):
 async def extract(req: Request):
     d = await req.json(); p = Path(d["path"])
     if not p.exists(): raise HTTPException(404)
-    if p.suffix!= ".zip": raise HTTPException(400, "bukan file zip")
-    try:
-        with zipfile.ZipFile(p) as z: z.extractall(p.parent)
-        return {"ok": True}
-    except Exception as e: raise HTTPException(500, str(e))
+    if p.suffix!= ".zip": raise HTTPException(400, "bukan zip")
+    with zipfile.ZipFile(p) as z: z.extractall(p.parent)
+    return {"ok": True}
 
 @app.post("/api/deploy")
 async def deploy(req: Request):
