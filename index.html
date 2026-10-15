@@ -1,47 +1,57 @@
 <!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CloudPusat54 Panel</title>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PyRunnerCloud54</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}body{background:#0f1115;color:#fff;font-family:sans-serif;margin:0;padding:20px}
-.card{background:#1a1d24;padding:20px;border-radius:12px;margin-bottom:15px;border:1px solid #2a2e39}
-input{width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#111;color:#fff;margin:8px 0}
-button{width:100%;padding:12px;border-radius:8px;border:0;background:#6c5ce7;color:#fff;font-weight:bold}
-.small{color:#888;font-size:13px}
-</style>
-</head>
-<body>
-<div class="card">
-<h2>CloudPusat54 Panel</h2>
-<div class="small">VPS: <span id="ip"></span> | Login: admin / cloud54</div>
-</div>
-<div class="card" id="loginBox">
-<h3>Login</h3>
-<input id="u" placeholder="Username" value="admin">
-<input id="p" type="password" placeholder="Password" value="cloud54">
-<button onclick="login()">LOGIN</button>
-</div>
-<div class="card" id="panelBox" style="display:none">
-<h3>Status: <span id="stat">loading...</span></h3>
-<div id="apps"></div>
-<button onclick="location.reload()">Refresh</button>
-</div>
+*{box-sizing:border-box}body{margin:0;background:#0d0a1a;color:#fff;font-family:Inter,sans-serif}
+.header{padding:16px;text-align:center;background:#0d0a1a;border-bottom:1px solid #1e1a32;position:sticky;top:0;z-index:10}
+.logo{font-weight:800;font-size:26px}.logo span{color:#8b7cf7}
+.welcome{margin-top:6px;background:linear-gradient(90deg,#8b7cf7,#3dc5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;font-size:13px;letter-spacing:2px}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;padding:12px}
+.scard{padding:16px 14px}.scard:first-child{background:linear-gradient(135deg,#13232e,#12131f);border-radius:20px 0 0 20px;border:1px solid #1c2a33;border-right:0}
+.scard:nth-child(2){background:linear-gradient(135deg,#2a2050,#1a1830);border:1px solid #2d2655;border-left:0;border-right:0}
+.scard:last-child{background:linear-gradient(135deg,#1e2f4a,#181c2f);border-radius:0 20px 20px 0;border:1px solid #22405f;border-left:0}
+.scard small{color:#7a758f;font-size:11px}.scard b{font-size:22px;display:block;margin:6px 0 10px}
+.bar{height:4px;background:#1f1b33;border-radius:10px;overflow:hidden}.bar i{display:block;height:100%}
+.bots-wrap{margin:10px 12px;background:#151121;border:1px solid #23203a;border-radius:20px;padding:14px}
+.bot{background:#1c1830;border:1px solid #2a2645;border-radius:22px;padding:14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.dot{width:12px;height:12px;border-radius:50%}
+.live{background:#0d2a1e;color:#00ff88;border:1px solid #1a4d33;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.off{background:#2a1a1a;color:#ff4d4d;border:1px solid #4a1f1f;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.btn{border:0;border-radius:20px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer}
+.run{background:#fff;color:#000}.stop{background:#211821;color:#ff4d4d;border:1px solid #3a1f2a}.log{background:#211e32;color:#9a96b5;border:1px solid #2e2b4a}.edit{background:#1e2a3a;color:#3dc5ff;border:1px solid #2a3a4f}
+.tabs{display:flex;gap:8px;padding:0 12px 12px}.tab{padding:8px 14px;border-radius:20px;background:#1a1730;border:1px solid #2a2645;color:#7a758f;font-size:13px;cursor:pointer}.tab.active{background:#8b7cf7;color:#fff}
+.file{padding:10px;border-bottom:1px solid #1e1a32;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+input,textarea{width:100%;padding:10px;border-radius:12px;border:1px solid #2a2645;background:#0f0c1c;color:#fff;margin:5px 0}
+pre{background:#000;color:#0f0;padding:10px;border-radius:12px;max-height:300px;overflow:auto;white-space:pre-wrap}
+.modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:99}
+.modal-box{background:#1c1830;border:1px solid #2a2645;border-radius:20px;padding:20px;width:90%;max-width:400px}
+</style></head><body>
+<div class="header"><div class="logo">Cloud<span>Pusat54</span></div><div class="welcome">WELCOME TO PYRUNNERCLOUD54</div><div id="clock" style="color:#5a5672;font-size:12px;margin-top:4px"></div></div>
+<div class="stats"><div class="scard"><small>CPU</small><b id="cpu">0%</b><div class="bar"><i id="cpuBar" style="background:#00ff88;width:10%"></i></div></div><div class="scard"><small>RAM</small><b id="ram">0%</b><div class="bar"><i id="ramBar" style="background:#8b7cf7;width:10%"></i></div></div><div class="scard"><small>DISK</small><b id="disk">0%</b><div class="bar"><i id="diskBar" style="background:#3dc5ff;width:10%"></i></div></div></div>
+<div class="bots-wrap"><div style="display:flex;justify-content:space-between;margin-bottom:12px"><b>MY BOTS</b><small id="botCount">0 bots</small></div><div id="bots"></div></div>
+<div class="tabs"><div class="tab active" id="t-apps" onclick="show('apps')">Bots</div><div class="tab" id="t-fm" onclick="show('fm')">File Manager</div><div class="tab" id="t-deploy" onclick="show('deploy')">Deploy</div></div>
+<div id="fm" style="display:none;margin:12px;background:#151121;border:1px solid #23203a;border-radius:20px;padding:12px"><div style="display:flex;gap:6px"><input id="fmPath" value="/root/apps" style="flex:1"><button class="btn log" onclick="loadFM()">Go</button><button class="btn log" onclick="fmUp()">Up</button></div><div style="display:flex;gap:6px;margin-top:8px"><input type="file" id="fmFile"><button class="btn run" onclick="fmUpload()">Upload</button></div><div id="fmList" style="margin-top:10px"></div><div id="ed" style="display:none;margin-top:12px;border-top:1px solid #23203a;padding-top:12px"><b id="edPath" style="font-size:12px;color:#8b7cf7"></b><textarea id="edCode" rows="14"></textarea><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn run" onclick="saveF()">Save</button><button class="btn log" onclick="cancelEdit()">Batal</button><button class="btn stop" onclick="confirmDel()">Hapus</button><button class="btn edit" onclick="extractF()" id="extractBtn" style="display:none">Extract ZIP</button></div></div></div>
+<div id="deploy" style="display:none;margin:12px;background:#151121;border:1px solid #23203a;border-radius:20px;padding:12px"><input id="bName" placeholder="nama bot: pusat"><textarea id="bCode" rows="10" placeholder="paste kode main.py"></textarea><button class="btn run" style="width:100%" onclick="doDeploy()">DEPLOY & RUN</button><pre id="logOut" style="display:none;margin-top:10px"></pre></div>
+<div class="modal" id="delModal"><div class="modal-box"><b>Hapus file?</b><p id="delPathText" style="color:#9a96b5;font-size:13px;word-break:break-all"></p><div style="display:flex;gap:8px;margin-top:12px"><button class="btn stop" onclick="doDel()">Ya, Hapus</button><button class="btn log" onclick="closeDel()">Batal</button></div></div></div>
 <script>
-fetch('/api/status').then(r=>r.json()).then(d=>{
- document.getElementById('stat').innerText = `CPU ${d.cpu}% | RAM ${d.ram}% | Apps ${d.apps}`;
- document.getElementById('ip').innerText = location.host;
-});
-function login(){
- fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u.value,password:p.value})})
-.then(r=>{if(!r.ok)throw 'salah'; return r.json()}).then(()=>{
-   loginBox.style.display='none'; panelBox.style.display='block';
-   fetch('/api/apps').then(r=>r.json()).then(apps=>{
-     document.getElementById('apps').innerHTML = apps.map(a=>`<div class='card'>${a.name}</div>`).join('') || 'Belum ada app di /root/apps';
-   });
- }).catch(()=>alert('Login gagal'));
-}
-</script>
-</body>
-</html>
+function show(t){document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));document.getElementById('t-'+t).classList.add('active');document.getElementById('fm').style.display=t=='fm'?'block':'none';document.getElementById('deploy').style.display=t=='deploy'?'block':'none';document.querySelector('.bots-wrap').style.display=t=='apps'?'block':'none';if(t=='fm')loadFM()}
+function loadStat(){fetch('/api/status').then(r=>r.json()).then(d=>{cpu.innerText=d.cpu+'%';cpuBar.style.width=d.cpu+'%';ram.innerText=d.ram+'%';ramBar.style.width=d.ram+'%';disk.innerText=d.disk+'%';diskBar.style.width=d.disk+'%'})}
+function loadBots(){fetch('/api/apps').then(r=>r.json()).then(arr=>{botCount.innerText=arr.length+' bots';bots.innerHTML=arr.length?arr.map(b=>`<div class=bot><div style="display:flex;align-items:center;gap:10px"><div class=dot style="background:${b.running?'#00ff88':'#ff4d4d'};box-shadow:${b.running?'0 0 10px #00ff88':''}"></div><div><div style="font-weight:700">${b.name}</div><div style="margin-top:4px"><span class="${b.running?'live':'off'}">${b.running?'LIVE':'OFF'}</span> <small style="color:#5a5672">#${b.pid||'----'}</small></div></div></div><div style="display:flex;gap:5px"><button class="btn run" onclick="runBot('${b.name}')">Run</button><button class="btn stop" onclick="stopBot('${b.name}')">Stop</button><button class="btn log" onclick="viewLog('${b.name}')">Log</button></div></div>`).join(''):`<div style="text-align:center;color:#5a5672;padding:20px">Belum ada bot</div>`})}
+function runBot(n){fetch(`/api/apps/${n}/start`,{method:'POST'}).then(()=>loadBots())}
+function stopBot(n){fetch(`/api/apps/${n}/stop`,{method:'POST'}).then(()=>loadBots())}
+function viewLog(n){show('deploy');fetch(`/api/apps/${n}/logs`).then(r=>r.json()).then(d=>{logOut.style.display='block';logOut.innerText=d.logs})}
+function loadFM(){fetch(`/api/files?path=${encodeURIComponent(fmPath.value)}`).then(r=>r.json()).then(d=>{if(d.type=='file'){openEditor(d.path,d.content);return}fmList.innerHTML=d.items.map(i=>`<div class=file onclick="clickFM('${i.path}',${i.is_dir})"><span>${i.is_dir?'📁':'📄'} ${i.name}</span><div><span style="color:#5a5672;font-size:11px">${i.is_dir?'':'${i.size}b'}</span> ${!i.is_dir&&i.name.endsWith('.zip')?'<button class=btn edit style=padding:4px 8px;font-size:11px;margin-left:6px onclick=event.stopPropagation();quickExtract(\''+i.path+'\')>Extract</button>':''}</div></div>`).join('')})}
+function clickFM(p,isDir){if(isDir){fmPath.value=p;loadFM()}else{fetch(`/api/files?path=${encodeURIComponent(p)}`).then(r=>r.json()).then(d=>{openEditor(d.path,d.content)})}}
+function openEditor(path,content){edPath.innerText=path;edCode.value=content;ed.style.display='block';extractBtn.style.display=path.endsWith('.zip')?'block':'none';}
+function fmUp(){let a=fmPath.value.split('/');a.pop();fmPath.value=a.join('/')||'/root';loadFM()}
+function saveF(){fetch('/api/files/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:edPath.innerText,content:edCode.value})}).then(()=>{alert('Saved');loadFM()})}
+function cancelEdit(){ed.style.display='none';}
+function confirmDel(){delPathText.innerText=edPath.innerText;delModal.style.display='flex';}
+function closeDel(){delModal.style.display='none';}
+function doDel(){fetch('/api/files/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:edPath.innerText})}).then(()=>{closeDel();ed.style.display='none';loadFM();loadBots()})}
+function extractF(){fetch('/api/files/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:edPath.innerText})}).then(()=>{alert('Extracted');loadFM()})}
+function quickExtract(p){fetch('/api/files/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p})}).then(()=>{alert('Extracted');loadFM()})}
+function fmUpload(){let f=fmFile.files[0];if(!f)return;let fd=new FormData();fd.append('file',f);fetch(`/api/files/upload?path=${encodeURIComponent(fmPath.value)}`,{method:'POST',body:fd}).then(()=>loadFM())}
+function doDeploy(){let n=bName.value||'pusat';let c=bCode.value;if(!c)return alert('paste kode');fetch('/api/deploy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,code:c})}).then(()=>{fetch(`/api/apps/${n}/start`,{method:'POST'}).then(()=>{show('apps');loadBots()})})}
+setInterval(()=>{clock.innerText=new Date().toLocaleTimeString()},1000);loadStat();loadBots();setInterval(()=>{loadStat();loadBots()},4000);
+</script></body></html>
