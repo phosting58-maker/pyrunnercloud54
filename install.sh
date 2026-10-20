@@ -1,12 +1,13 @@
 #!/bin/bash
 set -e
-echo "=== PyRunnerCloud54 V14 PERMANEN ==="
+echo "=== PyRunnerCloud54 V14 PERMANEN - FINAL ==="
 if [ "$EUID" -ne 0 ]; then echo "Harus root"; exit 1; fi
 apt-get update -y -q
 apt-get install -y -q python3 python3-venv python3-pip git curl zip unzip -q || true
 mkdir -p /root/panel/logs /root/apps
-rm -rf /root/panel/panel-venv /root/panel/__pycache__ 2>/dev/null || true
+rm -rf /root/panel/panel-venv 2>/dev/null || true
 
+# FILE DITANAM LANGSUNG DI INSTALL.SH - GAK NGANDALIN REPO
 cat > /root/panel/app.py << 'PY'
 from fastapi import FastAPI, Request, HTTPException, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
@@ -149,56 +150,10 @@ psutil
 python-multipart
 PY
 
-cat > /root/panel/index.html << 'HTML'
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CloudPusat54</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;800&display=swap" rel="stylesheet">
-<style>*{box-sizing:border-box}body{margin:0;background:#0d0a1a;color:#fff;font-family:Inter,sans-serif}
-.header{padding:16px;text-align:center;border-bottom:1px solid #1e1a32;position:sticky;top:0;background:#0d0a1a;z-index:10}
-.logo{font-weight:800;font-size:26px}.logo span{color:#8b7cf7}.welcome{margin-top:6px;background:linear-gradient(90deg,#8b7cf7,#3dc5ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;font-size:13px;letter-spacing:2px}
-.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;padding:12px}
-.scard{padding:16px 14px}.scard:first-child{background:linear-gradient(135deg,#13232e,#12131f);border-radius:20px 0 0 20px;border:1px solid #1c2a33;border-right:0}
-.scard:nth-child(2){background:linear-gradient(135deg,#2a2050,#1a1830);border:1px solid #2d2655;border-left:0;border-right:0}
-.scard:last-child{background:linear-gradient(135deg,#1e2f4a,#181c2f);border-radius:0 20px 20px 0;border:1px solid #22405f;border-left:0}
-.scard small{color:#7a758f;font-size:11px}.scard b{font-size:22px;display:block;margin:6px 0 10px}.bar{height:4px;background:#1f1b33;border-radius:10px;overflow:hidden}.bar i{display:block;height:100%}
-.bots-wrap{margin:10px 12px;background:#151121;border:1px solid #23203a;border-radius:20px;padding:14px}
-.bot{background:#1c1830;border:1px solid #2a2645;border-radius:22px;padding:14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.live{background:#0d2a1e;color:#00ff88;border:1px solid #1a4d33;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}.off{background:#2a1a1a;color:#ff4d4d;border:1px solid #4a1f1f;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
-.btn{border:0;border-radius:20px;padding:10px 18px;font-weight:800;font-size:14px;cursor:pointer;touch-action:manipulation}
-.run{background:#fff;color:#000}.stop{background:#211821;color:#ff4d4d;border:1px solid #3a1f2a}.log{background:#211e32;color:#9a96b5;border:1px solid #2e2b4a}
-.tabs{display:flex;gap:8px;padding:0 12px 12px}.tab{padding:8px 14px;border-radius:20px;background:#1a1730;border:1px solid #2a2645;color:#7a758f;font-size:13px;cursor:pointer}.tab.active{background:#8b7cf7;color:#fff}
-.file{padding:10px;border-bottom:1px solid #1e1a32;display:flex;justify-content:space-between;align-items:center}
-input,textarea{width:100%;padding:10px;border-radius:12px;border:1px solid #2a2645;background:#0f0c1c;color:#fff;margin:5px 0}
-pre{background:#000;color:#0f0;padding:10px;border-radius:12px;max-height:320px;overflow:auto;white-space:pre-wrap}
-.login{position:fixed;inset:0;background:#0d0a1a;z-index:999;display:flex;align-items:center;justify-content:center}
-.uploadBox{border:1px dashed #3a3560;background:#0f0c1c;border-radius:16px;padding:14px;text-align:center;margin:10px 0}
-</style></head><body>
-<div class="login" id="loginPage"><div style="background:#151121;border:1px solid #23203a;border-radius:20px;padding:24px;width:90%;max-width:320px;text-align:center"><div style="font-weight:800;font-size:24px">Cloud<span style="color:#8b7cf7">Pusat54</span></div><div class="welcome">WELCOME TO PYRUNNERCLOUD54</div><input id="u" value="admin"><input id="p" type="password" value="cloud54"><button class="btn run" style="width:100%;margin-top:10px" onclick="doLogin()">LOGIN</button></div></div>
-<div class="header"><div class="logo">Cloud<span>Pusat54</span></div><div class="welcome">WELCOME TO PYRUNNERCLOUD54</div><div style="display:flex;justify-content:center;gap:10px;margin-top:6px"><small id="clock" style="color:#5a5672"></small><small onclick="logout()" style="color:#8b7cf7;cursor:pointer">Logout</small></div></div>
-<div class="stats"><div class="scard"><small>CPU</small><b id="cpu">0%</b><div class="bar"><i id="cpuBar" style="background:#00ff88;width:10%"></i></div></div><div class="scard"><small>RAM</small><b id="ram">0%</b><div class="bar"><i id="ramBar" style="background:#8b7cf7;width:10%"></i></div></div><div class="scard"><small>DISK</small><b id="disk">0%</b><div class="bar"><i id="diskBar" style="background:#3dc5ff;width:10%"></i></div></div></div>
-<div class="bots-wrap"><div style="display:flex;justify-content:space-between"><b>MY BOTS</b><small id="botCount"></small></div><div id="bots" style="margin-top:10px"></div></div>
-<div class="tabs"><div class="tab active" id="t-apps" onclick="show('apps')">Bots</div><div class="tab" id="t-fm" onclick="show('fm')">File Manager</div><div class="tab" id="t-deploy" onclick="show('deploy')">Deploy</div></div>
-<div id="fm" style="display:none;margin:12px;background:#151121;border:1px solid #23203a;border-radius:20px;padding:12px"><div style="display:flex;gap:6px"><input id="fmPath" value="/root/apps" style="flex:1"><button class="btn log" onclick="loadFM()">Go</button></div><div id="fmList" style="margin-top:10px"></div><div id="ed" style="display:none;margin-top:12px;border-top:1px solid #23203a;padding-top:12px"><b id="edPath" style="font-size:12px;color:#8b7cf7"></b><textarea id="edCode" rows="14"></textarea><div style="display:flex;gap:6px"><button class="btn run" onclick="saveF()">Save</button><button class="btn log" onclick="cancelEdit()">Batal</button><button class="btn stop" onclick="doDel()">Hapus</button></div></div></div>
-<div id="deploy" style="display:none;margin:12px;background:#151121;border:1px solid #23203a;border-radius:20px;padding:12px"><input id="bName" placeholder="nama bot: pusat"><textarea id="bCode" rows="8" placeholder="paste kode main.py"></textarea><button class="btn run" style="width:100%" onclick="doDeploy()">DEPLOY & RUN</button><div class="uploadBox"><b style="font-size:13px">ATAU UPLOAD SCRIPT</b><br><small style="color:#7a758f">.py atau.zip</small><input type="file" id="deployFile" accept=".py,.zip" style="margin-top:10px"><button class="btn edit" style="width:100%;margin-top:8px" onclick="doDeployUpload()">UPLOAD & DEPLOY</button><small id="upStatus" style="display:block;color:#3dc5ff;margin-top:8px"></small></div><pre id="logOut" style="display:none;margin-top:10px"></pre></div>
-<script>
-function doLogin(){fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u.value,password:p.value})}).then(r=>{if(r.ok){localStorage.setItem('login','1');loginPage.style.display='none'}else alert('salah')})}
-if(localStorage.getItem('login')=='1')loginPage.style.display='none'
-function logout(){localStorage.removeItem('login');location.reload()}
-function show(t){document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));document.getElementById('t-'+t).classList.add('active');fm.style.display=t=='fm'?'block':'none';deploy.style.display=t=='deploy'?'block':'none';document.querySelector('.bots-wrap').style.display=t=='apps'?'block':'none';if(t=='fm')loadFM()}
-function loadStat(){fetch('/api/status').then(r=>r.json()).then(d=>{cpu.innerText=d.cpu+'%';cpuBar.style.width=d.cpu+'%';ram.innerText=d.ram+'%';ramBar.style.width=d.ram+'%';disk.innerText=d.disk+'%';diskBar.style.width=d.disk+'%'})}
-function loadBots(){fetch('/api/apps').then(r=>r.json()).then(arr=>{botCount.innerText=arr.length+' bots';bots.innerHTML=arr.length?arr.map(b=>`<div class=bot><div style="display:flex;align-items:center;gap:10px"><div style="width:12px;height:12px;border-radius:50%;background:${b.running?'#00ff88':'#ff4d4d'}"></div><div><div style="font-weight:700">${b.name}</div><div style="margin-top:4px"><span class="${b.running?'live':'off'}">${b.running?'LIVE':'OFF'}</span> <small style="color:#5a5672">#${b.pid||'--'}</small></div></div></div><div style="display:flex;gap:5px"><button class="btn run" onclick="runBot('${b.name}')">Run</button><button class="btn stop" onclick="stopBot('${b.name}')">Stop</button><button class="btn log" onclick="viewLog('${b.name}')">Log</button></div></div>`).join(''):`<div style="text-align:center;color:#5a5672;padding:20px">Belum ada bot</div>`})}
-async function runBot(n){let r=await fetch('/api/apps/'+n+'/start',{method:'POST'});if(!r.ok){let t=await r.text();alert('Gagal: '+t.slice(0,300))}setTimeout(loadBots,900)}
-async function stopBot(n){await fetch('/api/apps/'+n+'/stop',{method:'POST'});setTimeout(loadBots,600)}
-function viewLog(n){show('deploy');fetch('/api/apps/'+n+'/logs').then(r=>r.json()).then(d=>{logOut.style.display='block';logOut.innerText=d.logs})}
-function loadFM(){fetch('/api/files?path='+encodeURIComponent(fmPath.value)).then(r=>r.json()).then(d=>{if(d.type=='file'){edPath.innerText=d.path;edCode.value=d.content;ed.style.display='block';return}fmList.innerHTML=d.items.map(i=>`<div class=file onclick="clickFM('${i.path}',${i.is_dir})"><span>${i.is_dir?'📁':'📄'} ${i.name}</span></div>`).join('')})}
-function clickFM(p,isDir){if(isDir){fmPath.value=p;loadFM()}else{fetch('/api/files?path='+encodeURIComponent(p)).then(r=>r.json()).then(d=>{edPath.innerText=d.path;edCode.value=d.content;ed.style.display='block'})}}
-function saveF(){fetch('/api/files/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:edPath.innerText,content:edCode.value})}).then(()=>{alert('Saved');loadFM()})}
-function cancelEdit(){ed.style.display='none'}
-function doDel(){fetch('/api/files/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:edPath.innerText})}).then(()=>{ed.style.display='none';loadFM();loadBots()})}
-function doDeploy(){let n=bName.value||'pusat';let c=bCode.value;if(!c)return alert('paste kode');fetch('/api/deploy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,code:c})}).then(()=>{fetch('/api/apps/'+n+'/start',{method:'POST'}).then(()=>{show('apps');loadBots()})})}
-function doDeployUpload(){let n=bName.value||'pusat';let f=deployFile.files[0];if(!f)return alert('Pilih file');let fd=new FormData();fd.append('name',n);fd.append('file',f);upStatus.innerText='Uploading...';fetch('/api/deploy/upload',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{upStatus.innerText='Deployed '+d.name;fetch('/api/apps/'+d.name+'/start',{method:'POST'}).then(()=>{show('apps');loadBots()})})}
-setInterval(()=>clock.innerText=new Date().toLocaleTimeString(),1000);loadStat();loadBots();setInterval(()=>{loadStat();loadBots()},3000)
-</script></body></html>
-HTML
+# index.html sudah ada dari repo, kalau belum ada download dari raw
+if [ ! -f /root/panel/index.html ] || [ $(wc -c < /root/panel/index.html) -lt 1000 ]; then
+  curl -sSL https://raw.githubusercontent.com/phosting58-maker/pyrunnercloud54/main/index.html -o /root/panel/index.html || echo "index.html harus ada di repo"
+fi
 
 cd /root/panel
 python3 -m venv panel-venv
@@ -218,7 +173,6 @@ User=root
 [Install]
 WantedBy=multi-user.target
 SVC
-
 cat > /etc/systemd/system/cloud54-watchdog.service << 'SVC2'
 [Unit]
 Description=Watchdog Auto Fix
@@ -232,7 +186,6 @@ User=root
 [Install]
 WantedBy=multi-user.target
 SVC2
-
 cat > /etc/systemd/system/cloud54-bots.service << 'SVC3'
 [Unit]
 Description=Bot Autostart
@@ -253,9 +206,4 @@ sleep 2
 systemctl restart cloud54-watchdog
 systemctl restart cloud54-bots || true
 IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
-echo ""
-echo "=========================================="
-echo "DONE V14 PERMANEN - PANEL HIDUP"
-echo "Panel: http://$IP:8000"
-echo "Login: admin / cloud54"
-echo "=========================================="
+echo "DONE V14 PERMANEN http://$IP:8000 admin/cloud54"
