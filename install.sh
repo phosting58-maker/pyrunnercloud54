@@ -1,13 +1,8 @@
 #!/bin/bash
 set -e
-echo "=== PyRunnerCloud54 V14 PERMANEN - FINAL ==="
-if [ "$EUID" -ne 0 ]; then echo "Harus root"; exit 1; fi
-apt-get update -y -q
-apt-get install -y -q python3 python3-venv python3-pip git curl zip unzip -q || true
+apt-get update -y -q && apt-get install -y -q python3 python3-venv python3-pip curl zip unzip -q
 mkdir -p /root/panel/logs /root/apps
-rm -rf /root/panel/panel-venv 2>/dev/null || true
-
-# FILE DITANAM LANGSUNG DI INSTALL.SH - GAK NGANDALIN REPO
+rm -rf /root/panel/panel-venv 2>/dev/null; true
 cat > /root/panel/app.py << 'PY'
 from fastapi import FastAPI, Request, HTTPException, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
@@ -48,17 +43,30 @@ async def list_apps():
  return out
 @app.post("/api/apps/{name}/start")
 async def start_app(name:str):
- ap=APPS_DIR/name; main=ap/"main.py"; log=LOGS_DIR/f"{name}.log"; pidf=ap/"bot.pid"
+ ap=APPS_DIR/name; main=ap/"main.py"; log=LOGS_DIR/f"{name}.log"; pidf=ap/"bot.pid"; reqf=ap/"requirements.txt"
  if not main.exists(): raise HTTPException(400,"main.py not found")
  if pidf.exists():
   try: os.kill(int(pidf.read_text()),9)
   except: pass
   pidf.unlink(missing_ok=True)
+ # FIX PERMANEN TELEGRAM: auto install requirements + lib telegram umum
+ if reqf.exists():
+  try: subprocess.run(["/root/panel/panel-venv/bin/pip","install","-r",str(reqf),"-q"],timeout=120)
+  except: pass
+ else:
+  # kalo gak ada requirements.txt, install lib telegram standar biar gak ModuleNotFoundError
+  try: subprocess.run(["/root/panel/panel-venv/bin/pip","install","telebot","pyTelegramBotAPI","python-telegram-bot==13.15","telethon","pyrogram","tgcrypto","requests","python-dotenv","-q"],timeout=120)
+  except: pass
  with open(log,"a") as lf:
   lf.write(f"\n--- START {datetime.now()} ---\n")
   proc=subprocess.Popen(["/root/panel/panel-venv/bin/python","-u",str(main)],cwd=str(ap),stdout=lf,stderr=subprocess.STDOUT,start_new_session=True)
  pidf.write_text(str(proc.pid)); (ap/".should_run").write_text("1")
- time.sleep(1); return {"ok":True,"pid":proc.pid}
+ time.sleep(2.5)
+ # VALIDASI BENERAN JALAN ATAU CRASH
+ if not is_running(name):
+  err=open(log).read()[-3000:] if log.exists() else "crash no log"
+  raise HTTPException(500, err)
+ return {"ok":True,"pid":proc.pid}
 @app.post("/api/apps/{name}/stop")
 async def stop_app(name:str):
  pidf=APPS_DIR/name/"bot.pid"; should=APPS_DIR/name/".should_run"
@@ -75,7 +83,7 @@ async def logs(name:str):
 @app.get("/api/files")
 async def files(path:str="/root/apps"):
  p=Path(path)
- if p.is_file(): return {"type":"file","path":str(p),"content":p.read_text(errors="ignore")[-10000:]}
+ if p.is_file(): return {"type":"file","path":str(p),"content":p.read_text(errors="ignore")[-15000:]}
  return {"type":"dir","path":str(p),"items":[{"name":c.name,"path":str(c),"is_dir":c.is_dir()} for c in p.iterdir()]}
 @app.post("/api/files/write")
 async def wr(req:Request):
@@ -106,7 +114,6 @@ async def ex(req:Request):
  d=await req.json(); p=Path(d["path"])
  with zipfile.ZipFile(p) as z: z.extractall(p.parent); return {"ok":True}
 PY
-
 cat > /root/panel/watchdog.py << 'PY'
 import time, subprocess, psutil
 from pathlib import Path
@@ -115,21 +122,18 @@ def is_running(p):
  if not p.exists(): return False
  try: return psutil.pid_exists(int(p.read_text().strip()))
  except: return False
-print("WATCHDOG START")
 while True:
  for bot in APPS_DIR.iterdir():
   if not bot.is_dir() or not (bot/"main.py").exists(): continue
-  should=bot/".should_run"; pidf=bot/"bot.pid"; log=LOGS_DIR/f"{bot.name}.log"
-  if should.exists() and not is_running(pidf):
+  if (bot/".should_run").exists() and not is_running(bot/"bot.pid"):
    try:
-    with open(log,"a") as lf:
+    with open(LOGS_DIR/f"{bot.name}.log","a") as lf:
      lf.write(f"\n--- AUTO RESTART {time.ctime()} ---\n")
      proc=subprocess.Popen(["/root/panel/panel-venv/bin/python","-u",str(bot/"main.py")],cwd=str(bot),stdout=lf,stderr=subprocess.STDOUT,start_new_session=True)
-    pidf.write_text(str(proc.pid))
+    (bot/"bot.pid").write_text(str(proc.pid))
    except: pass
  time.sleep(10)
 PY
-
 cat > /root/panel/autostart.py << 'PY'
 import subprocess
 from pathlib import Path
@@ -140,46 +144,37 @@ for d in APPS.iterdir():
    with open(LOGS/f"{d.name}.log","a") as lf:
     subprocess.Popen(["/root/panel/panel-venv/bin/python","-u",str(d/"main.py")],cwd=str(d),stdout=lf,stderr=subprocess.STDOUT,start_new_session=True)
   except: pass
-print("autostart done")
 PY
-
 cat > /root/panel/requirements.txt << 'PY'
 fastapi
 uvicorn
 psutil
 python-multipart
 PY
-
-# index.html sudah ada dari repo, kalau belum ada download dari raw
-if [ ! -f /root/panel/index.html ] || [ $(wc -c < /root/panel/index.html) -lt 1000 ]; then
-  curl -sSL https://raw.githubusercontent.com/phosting58-maker/pyrunnercloud54/main/index.html -o /root/panel/index.html || echo "index.html harus ada di repo"
-fi
-
+curl -sSL https://raw.githubusercontent.com/phosting58-maker/pyrunnercloud54/main/index.html -o /root/panel/index.html
 cd /root/panel
 python3 -m venv panel-venv
 ./panel-venv/bin/pip install -r requirements.txt -q
-
+./panel-venv/bin/pip install telebot pyTelegramBotAPI python-telegram-bot==13.15 telethon pyrogram tgcrypto requests python-dotenv -q
 cat > /etc/systemd/system/cloud54.service << 'SVC'
 [Unit]
-Description=PyRunnerCloud54 Panel
+Description=Cloud54
 After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/root/panel
 ExecStart=/root/panel/panel-venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000
 Restart=always
-RestartSec=2
 User=root
 [Install]
 WantedBy=multi-user.target
 SVC
 cat > /etc/systemd/system/cloud54-watchdog.service << 'SVC2'
 [Unit]
-Description=Watchdog Auto Fix
+Description=Watchdog
 After=cloud54.service
 [Service]
 Type=simple
-WorkingDirectory=/root/panel
 ExecStart=/root/panel/panel-venv/bin/python /root/panel/watchdog.py
 Restart=always
 User=root
@@ -188,22 +183,16 @@ WantedBy=multi-user.target
 SVC2
 cat > /etc/systemd/system/cloud54-bots.service << 'SVC3'
 [Unit]
-Description=Bot Autostart
+Description=Bots
 After=cloud54.service
 [Service]
 Type=oneshot
-WorkingDirectory=/root/panel
 ExecStart=/root/panel/panel-venv/bin/python /root/panel/autostart.py
 RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target
 SVC3
-
 systemctl daemon-reload
 systemctl enable cloud54 cloud54-watchdog cloud54-bots -q
-systemctl restart cloud54
-sleep 2
-systemctl restart cloud54-watchdog
-systemctl restart cloud54-bots || true
-IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
-echo "DONE V14 PERMANEN http://$IP:8000 admin/cloud54"
+systemctl restart cloud54; sleep 2; systemctl restart cloud54-watchdog; systemctl restart cloud54-bots || true
+echo "DONE PERMANEN http://$(curl -s ifconfig.me):8000 admin/cloud54"
